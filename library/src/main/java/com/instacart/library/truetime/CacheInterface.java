@@ -12,5 +12,6 @@ public interface CacheInterface {
 
     void clear();
 
-
+    //Some implementations may require flushing after changing the cache
+    void flush();
 }

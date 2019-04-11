@@ -32,6 +32,10 @@ class SharedPreferenceCacheImpl implements CacheInterface {
         remove(CacheInterface.KEY_CACHED_SNTP_TIME);
     }
 
+    //Flushing not required
+    @Override
+    public void flush() { }
+
     private void remove(String keyCachedBootTime) {
         _sharedPreferences.edit().remove(keyCachedBootTime).apply();
     }

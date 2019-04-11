@@ -52,7 +52,8 @@ class DiskCacheClient {
         _cacheInterface.put(KEY_CACHED_BOOT_TIME, bootTime);
         _cacheInterface.put(KEY_CACHED_DEVICE_UPTIME, cachedDeviceUptime);
         _cacheInterface.put(KEY_CACHED_SNTP_TIME, cachedSntpTime);
-
+        //Flush the cache after putting all the values in to make sure they are written to disk
+        _cacheInterface.flush();
     }
 
     boolean isTrueTimeCachedFromAPreviousBoot() {
