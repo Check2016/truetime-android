@@ -2,6 +2,7 @@ package com.instacart.library.truetime;
 
 import android.content.Context;
 import android.os.Environment;
+import android.provider.Settings;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -23,6 +24,8 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +33,9 @@ import java.util.Map;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -39,6 +44,10 @@ public class MoreSecureCacheImpl implements CacheInterface {
     private static final String TAG = TrueTime.class.getSimpleName();
 
     private static String PATH_MORE_SECURE_CACHE_FILE;
+
+    //Hard coded since the encoded file doesn't need to be secure, just unreadable for a human
+    //(You would need a rooted device and reverse the parsing and checksum algorithm to fool this cache)
+    // => not very secure but pretty good for most use cases
     private static final byte[] MORE_SECURE_CACHE_KEY = new byte[] { (byte)105, (byte)168, (byte)167, (byte)105, (byte)43, (byte)128, (byte)164, (byte)250, (byte)54, (byte)37, (byte)124, (byte)135, (byte)173, (byte)237, (byte)140, (byte)145 };
     private static final byte[] MORE_SECURE_CACHE_IV = new byte[] { (byte)70, (byte)156, (byte)165, (byte)150, (byte)87, (byte)248, (byte)4, (byte)213, (byte)89, (byte)97, (byte)102, (byte)227, (byte)178, (byte)132, (byte)8, (byte)207 };
 
@@ -57,10 +66,7 @@ public class MoreSecureCacheImpl implements CacheInterface {
 
     public MoreSecureCacheImpl(Context context){
 
-        PATH_MORE_SECURE_CACHE_FILE = Environment.getExternalStorageDirectory() + "/tt.dat";
-        //PATH_MORE_SECURE_CACHE_FILE = context.getFilesDir().getPath() + "/tt.dat";
-
-        TrueLog.v(TAG, "MoreSecureCachePath: " + PATH_MORE_SECURE_CACHE_FILE);
+        PATH_MORE_SECURE_CACHE_FILE = context.getFilesDir().getPath() + "/tt.dat";
 
         LoadValues();
     }
@@ -84,7 +90,17 @@ public class MoreSecureCacheImpl implements CacheInterface {
 
     @Override
     public void clear() {
+
         keyValueMap.clear();
+
+        File file = new File(PATH_MORE_SECURE_CACHE_FILE);
+
+        if (file.exists()){
+
+            if(!file.delete()){
+                TrueLog.e(TAG, "MoreSecureCacheImpl: clear() Save file deletion failed!");
+            }
+        }
     }
 
     @Override
@@ -97,9 +113,7 @@ public class MoreSecureCacheImpl implements CacheInterface {
         File file = new File(PATH_MORE_SECURE_CACHE_FILE);
 
         if (file.exists()){
-
-            TrueLog.v(TAG, "MoreSecureCacheImpl: LoadValues() file exits");
-
+            //TrueLog.v(TAG, "MoreSecureCacheImpl: LoadValues() file exits");
             try{
 
                 FileInputStream fileInputStream = new FileInputStream(PATH_MORE_SECURE_CACHE_FILE);
@@ -108,37 +122,41 @@ public class MoreSecureCacheImpl implements CacheInterface {
                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(MORE_SECURE_CACHE_KEY, "AES"), new IvParameterSpec(MORE_SECURE_CACHE_IV));
                 CipherInputStream cipherInputStream = new CipherInputStream(fileInputStream, cipher);
 
-                InputStreamReader inputStreamReader = new InputStreamReader(cipherInputStream);
+                InputStreamReader inputStreamReader = new InputStreamReader(cipherInputStream, "UTF-8");
 
-                Gson gson = new Gson();
+                SaveContainer saveContainer = null;
+                try{
+                    Gson gson = new Gson();
+                    saveContainer = gson.fromJson(inputStreamReader, SaveContainer.class);
 
-
-                //TODO: Change that back!!
-                InputStreamReader readerLOL = new InputStreamReader(fileInputStream, "UTF-8");
-                JsonReader jsonReader = new JsonReader(readerLOL);
-
-                SaveContainer saveContainer = gson.fromJson(jsonReader, SaveContainer.class);
-
-                //SaveContainer saveContainer = gson.fromJson(inputStreamReader, SaveContainer.class);
+                }catch (Exception e){
+                    TrueLog.e(TAG, "MoreSecureCacheImpl: LoadValues() Gson: error occurred while deserializing!", e);
+                }
 
                 if (saveContainer != null){
-
                     byte[] checksum = CalculateChecksum(saveContainer.KeyValueMap);
 
                     if (Arrays.equals(checksum, saveContainer.Checksum)){
 
                         keyValueMap = saveContainer.KeyValueMap;
+
                     }else{
-                        TrueLog.w(TAG, "MoreSecureCacheImpl: LoadValues() checksums aren't matching!");
+                        TrueLog.w(TAG, "MoreSecureCacheImpl: LoadValues() checksums aren't matching! Resetting...");
+
+                        //Reset all values since the save file is invalid
+                        keyValueMap.clear();
+
+                        if(!file.delete()){
+                            TrueLog.e(TAG, "MoreSecureCacheImpl: LoadValues() Save file deletion failed!");
+                        }
                     }
                 }else{
                     TrueLog.e(TAG, "MoreSecureCacheImpl: LoadValues() fromJson() returned null");
+
+                    keyValueMap.clear();
                 }
 
                 try{
-                    jsonReader.close();
-                    readerLOL.close();
-
                     inputStreamReader.close();
                     cipherInputStream.close();
                     fileInputStream.close();
@@ -162,8 +180,7 @@ public class MoreSecureCacheImpl implements CacheInterface {
             }
 
         }else{
-            TrueLog.v(TAG, "MoreSecureCacheImpl: LoadValues() file doesn't exit");
-
+            //TrueLog.v(TAG, "MoreSecureCacheImpl: LoadValues() file doesn't exit");
             keyValueMap.clear();
         }
     }
@@ -178,27 +195,21 @@ public class MoreSecureCacheImpl implements CacheInterface {
             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(MORE_SECURE_CACHE_KEY, "AES"), new IvParameterSpec(MORE_SECURE_CACHE_IV));
             CipherOutputStream cipherOutputStream = new CipherOutputStream(fileOutputStream, cipher);
 
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(cipherOutputStream);
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(cipherOutputStream, "UTF-8");
 
             byte[] checksum = CalculateChecksum(keyValueMap);
             SaveContainer saveContainer = new SaveContainer(keyValueMap, checksum);
 
-            Gson gson = new Gson();
+            try{
+                Gson gson = new Gson();
+                gson.toJson(saveContainer, SaveContainer.class, outputStreamWriter);
 
-            //TODO: Change that back!!
-            OutputStreamWriter outputWriterLOL = new OutputStreamWriter(fileOutputStream, "UTF-8");
-            JsonWriter jsonWriter = new JsonWriter(outputWriterLOL);
-
-            TrueLog.v(TAG, "MoreSecureCacheImpl: SaveValues() toJson: " + gson.toJson(saveContainer, SaveContainer.class));
-
-            gson.toJson(saveContainer, SaveContainer.class, jsonWriter);
-
-            //gson.toJson(saveContainer, outputStreamWriter);
+                //TrueLog.v(TAG, "MoreSecureCacheImpl: SaveValues() toJson: " + gson.toJson(saveContainer, SaveContainer.class));
+            }catch (Exception e){
+                TrueLog.e(TAG, "MoreSecureCacheImpl: SaveValues() Gson: error occurred while serializing!", e);
+            }
 
             try{
-                jsonWriter.close();
-                outputWriterLOL.close();
-
                 outputStreamWriter.close();
                 cipherOutputStream.close();
                 fileOutputStream.close();
@@ -206,8 +217,7 @@ public class MoreSecureCacheImpl implements CacheInterface {
             }catch (IOException e){
                 TrueLog.e(TAG, "MoreSecureCacheImpl: SaveValues() IOException while closing streams", e);
             }
-
-            TrueLog.v(TAG, "MoreSecureCacheImpl: SaveValues() successfully saved");
+            //TrueLog.v(TAG, "MoreSecureCacheImpl: SaveValues() successfully saved");
 
         }catch (FileNotFoundException fileNotFoundException){
             TrueLog.e(TAG, "MoreSecureCacheImpl: SaveValues() FileNotFoundException", fileNotFoundException);
@@ -227,7 +237,6 @@ public class MoreSecureCacheImpl implements CacheInterface {
     private byte[] CalculateChecksum(Map<String, Long> map){
 
         try{
-
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
 
             for (Map.Entry<String, Long> entry : map.entrySet()) {
