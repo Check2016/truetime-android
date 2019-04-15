@@ -37,6 +37,14 @@ public class TrueTime {
         return new Date(now);
     }
 
+    public static long getCachedSntpTime(){
+        if (!isInitialized()) {
+            throw new IllegalStateException("You need to call init() on TrueTime at least once.");
+        }
+
+        return _getCachedSntpTime();
+    }
+
     public static boolean isInitialized() {
         return SNTP_CLIENT.wasInitialized() || DISK_CACHE_CLIENT.isTrueTimeCachedFromAPreviousBoot();
     }
