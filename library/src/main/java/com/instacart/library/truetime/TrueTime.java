@@ -45,6 +45,22 @@ public class TrueTime {
         return _getCachedSntpTime();
     }
 
+    public static long getCachedDeviceUptime(){
+        if (!isInitialized()) {
+            throw new IllegalStateException("You need to call init() on TrueTime at least once.");
+        }
+
+        return _getCachedDeviceUptime();
+    }
+
+    public static long getCachedFirstSntpTime(){
+        if (!isInitialized()) {
+            throw new IllegalStateException("You need to call init() on TrueTime at least once.");
+        }
+
+        return _getCachedFirstSntpTime();
+    }
+
     public static boolean isInitialized() {
         return SNTP_CLIENT.wasInitialized() || DISK_CACHE_CLIENT.isTrueTimeCachedFromAPreviousBoot();
     }
@@ -179,6 +195,18 @@ public class TrueTime {
         }
 
         return cachedSntpTime;
+    }
+
+    private static long _getCachedFirstSntpTime() {
+        long cachedFirstSntpTime = SNTP_CLIENT.wasInitialized()
+                ? SNTP_CLIENT.getCachedFirstSntpTime()
+                : DISK_CACHE_CLIENT.getCachedFirstSntpTime();
+
+        if (cachedFirstSntpTime == 0L) {
+            throw new RuntimeException("expected SNTP time from last boot to be cached. couldn't find it.");
+        }
+
+        return cachedFirstSntpTime;
     }
 
 }

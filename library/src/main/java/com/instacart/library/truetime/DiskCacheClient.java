@@ -4,6 +4,7 @@ import android.os.SystemClock;
 
 import static com.instacart.library.truetime.CacheInterface.KEY_CACHED_BOOT_TIME;
 import static com.instacart.library.truetime.CacheInterface.KEY_CACHED_DEVICE_UPTIME;
+import static com.instacart.library.truetime.CacheInterface.KEY_CACHED_FIRST_SNTP_TIME;
 import static com.instacart.library.truetime.CacheInterface.KEY_CACHED_SNTP_TIME;
 
 class DiskCacheClient {
@@ -52,6 +53,13 @@ class DiskCacheClient {
         _cacheInterface.put(KEY_CACHED_BOOT_TIME, bootTime);
         _cacheInterface.put(KEY_CACHED_DEVICE_UPTIME, cachedDeviceUptime);
         _cacheInterface.put(KEY_CACHED_SNTP_TIME, cachedSntpTime);
+
+        long currentlyCachedFirstSntpTime = _cacheInterface.get(KEY_CACHED_FIRST_SNTP_TIME, 0L);
+
+        if (currentlyCachedFirstSntpTime == 0L){
+            _cacheInterface.put(KEY_CACHED_FIRST_SNTP_TIME, cachedSntpTime);
+        }
+
         //Flush the cache after putting all the values in to make sure they are written to disk
         _cacheInterface.flush();
     }
@@ -86,6 +94,14 @@ class DiskCacheClient {
         }
 
         return _cacheInterface.get(KEY_CACHED_SNTP_TIME, 0L);
+    }
+
+    long getCachedFirstSntpTime() {
+        if (cacheUnavailable()) {
+            return 0L;
+        }
+
+        return _cacheInterface.get(KEY_CACHED_FIRST_SNTP_TIME, 0L);
     }
 
     // -----------------------------------------------------------------------------------
