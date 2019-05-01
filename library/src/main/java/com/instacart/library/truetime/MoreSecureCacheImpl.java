@@ -43,13 +43,13 @@ public class MoreSecureCacheImpl implements CacheInterface {
 
     private static final String TAG = TrueTime.class.getSimpleName();
 
-    private static String PATH_MORE_SECURE_CACHE_FILE;
-
     //Hard coded since the encoded file doesn't need to be secure, just unreadable for a human
     //(You would need a rooted device and reverse the parsing and checksum algorithm to fool this cache)
     // => not very secure but pretty good for most use cases
     private static final byte[] MORE_SECURE_CACHE_KEY = new byte[] { (byte)105, (byte)168, (byte)167, (byte)105, (byte)43, (byte)128, (byte)164, (byte)250, (byte)54, (byte)37, (byte)124, (byte)135, (byte)173, (byte)237, (byte)140, (byte)145 };
     private static final byte[] MORE_SECURE_CACHE_IV = new byte[] { (byte)70, (byte)156, (byte)165, (byte)150, (byte)87, (byte)248, (byte)4, (byte)213, (byte)89, (byte)97, (byte)102, (byte)227, (byte)178, (byte)132, (byte)8, (byte)207 };
+
+    private String PATH_MORE_SECURE_CACHE_FILE;
 
     private Map<String, Long> keyValueMap = new HashMap<>();
 
@@ -158,8 +158,6 @@ public class MoreSecureCacheImpl implements CacheInterface {
 
                 try{
                     inputStreamReader.close();
-                    cipherInputStream.close();
-                    fileInputStream.close();
 
                 }catch (IOException e){
                     TrueLog.e(TAG, "MoreSecureCacheImpl: LoadValues() IOException while closing streams", e);
@@ -211,8 +209,6 @@ public class MoreSecureCacheImpl implements CacheInterface {
 
             try{
                 outputStreamWriter.close();
-                cipherOutputStream.close();
-                fileOutputStream.close();
 
             }catch (IOException e){
                 TrueLog.e(TAG, "MoreSecureCacheImpl: SaveValues() IOException while closing streams", e);

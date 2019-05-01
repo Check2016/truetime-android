@@ -53,10 +53,10 @@ public class TrueTime {
         return _getCachedDeviceUptime();
     }
 
+    /**
+     * Returns first cached sntp time from disk cache client. Can return 0 if none was cached or cache is unavailable!
+     */
     public static long getCachedFirstSntpTime(){
-        if (!isInitialized()) {
-            throw new IllegalStateException("You need to call init() on TrueTime at least once.");
-        }
 
         return _getCachedFirstSntpTime();
     }
@@ -95,6 +95,13 @@ public class TrueTime {
      */
     public static void clearCachedInfo() {
         DISK_CACHE_CLIENT.clearCachedInfo();
+    }
+
+    /**
+     * invalidate the cached TrueTime info on device reboot, alternative to clear (retains cachedfirstSntpTime)
+     */
+    public static void invalidateCache() {
+        DISK_CACHE_CLIENT.invalidateCache();
     }
 
     public synchronized TrueTime withConnectionTimeout(int timeoutInMillis) {
@@ -198,15 +205,8 @@ public class TrueTime {
     }
 
     private static long _getCachedFirstSntpTime() {
-        long cachedFirstSntpTime = SNTP_CLIENT.wasInitialized()
-                ? SNTP_CLIENT.getCachedFirstSntpTime()
-                : DISK_CACHE_CLIENT.getCachedFirstSntpTime();
 
-        if (cachedFirstSntpTime == 0L) {
-            throw new RuntimeException("expected SNTP time from last boot to be cached. couldn't find it.");
-        }
-
-        return cachedFirstSntpTime;
+        return DISK_CACHE_CLIENT.getCachedFirstSntpTime();
     }
 
 }

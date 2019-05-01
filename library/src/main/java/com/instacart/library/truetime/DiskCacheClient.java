@@ -35,6 +35,18 @@ class DiskCacheClient {
         }
     }
 
+    void invalidateCache(){
+        invalidateCache(this._cacheInterface);
+    }
+
+    void invalidateCache(CacheInterface cacheInterface){
+        if (cacheInterface != null) {
+            //Invalidate Cache
+            cacheInterface.put(KEY_CACHED_BOOT_TIME, 0L);
+            cacheInterface.flush();
+        }
+    }
+
     void cacheTrueTimeInfo(SntpClient sntpClient) {
         if (cacheUnavailable()) {
             return;

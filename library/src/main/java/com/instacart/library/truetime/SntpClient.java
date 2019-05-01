@@ -59,7 +59,6 @@ public class SntpClient {
 
     private AtomicLong _cachedDeviceUptime = new AtomicLong();
     private AtomicLong _cachedSntpTime = new AtomicLong();
-    private AtomicLong _cachedFirstSntpTime = new AtomicLong();
     private AtomicBoolean _sntpInitialized = new AtomicBoolean(false);
 
     /**
@@ -216,10 +215,6 @@ public class SntpClient {
     void cacheTrueTimeInfo(long[] response) {
         _cachedSntpTime.set(sntpTime(response));
         _cachedDeviceUptime.set(response[RESPONSE_INDEX_RESPONSE_TICKS]);
-
-        if (_cachedFirstSntpTime.get() == 0L){
-            _cachedFirstSntpTime.set(_cachedSntpTime.get());
-        }
     }
 
     long sntpTime(long[] response) {
@@ -237,10 +232,6 @@ public class SntpClient {
      */
     long getCachedSntpTime() {
         return _cachedSntpTime.get();
-    }
-
-    long getCachedFirstSntpTime() {
-        return _cachedFirstSntpTime.get();
     }
 
     /**
